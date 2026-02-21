@@ -23,6 +23,7 @@ describe("SqliteDataSource", () => {
       expect(tableNames).toContain("experiments");
       expect(tableNames).toContain("experiment_metrics");
       expect(tableNames).toContain("events");
+      expect(tableNames).toContain("inclusion_logs");
     });
   });
 
@@ -65,7 +66,6 @@ describe("SqliteDataSource", () => {
 
   describe("getExperimentMetrics", () => {
     beforeEach(async () => {
-      // Insert test data
       await ds.executeQuery(
         "INSERT INTO metrics (key, name, type) VALUES (?, ?, ?)",
         ["conv", "Conversion", "binary"]
@@ -128,23 +128,45 @@ describe("SqliteDataSource", () => {
 
   describe("getEventData", () => {
     beforeEach(async () => {
-      const insert = "INSERT INTO events (experiment_key, variant_key, event_name, user_id, value, timestamp) VALUES (?, ?, ?, ?, ?, ?)";
-      await ds.executeQuery(insert, ["exp1", "control", "purchase", "u1", 10.5, "2025-01-15T10:00:00Z"]);
-      await ds.executeQuery(insert, ["exp1", "control", "purchase", "u2", 20.0, "2025-01-16T10:00:00Z"]);
-      await ds.executeQuery(insert, ["exp1", "treatment", "purchase", "u3", 15.0, "2025-01-17T10:00:00Z"]);
-      await ds.executeQuery(insert, ["exp1", "control", "page_view", "u4", null, "2025-01-15T12:00:00Z"]);
-      await ds.executeQuery(insert, ["exp1", "treatment", "purchase", "u5", 30.0, "2025-01-20T10:00:00Z"]);
+      // Insert experiment first (FK target)
+      await ds.executeQuery(
+        "INSERT INTO experiments (key, name) VALUES (?, ?)",
+        ["exp1", "Experiment 1"]
+      );
+
+      // Insert inclusion_logs
+      const ilInsert =
+        "INSERT INTO inclusion_logs (experiment_key, variant_key, user_uuid, timestamp) VALUES (?, ?, ?, ?)";
+      await ds.executeQuery(ilInsert, ["exp1", "control", "u1", "2025-01-15T10:00:00Z"]);
+      await ds.executeQuery(ilInsert, ["exp1", "control", "u2", "2025-01-16T10:00:00Z"]);
+      await ds.executeQuery(ilInsert, ["exp1", "treatment", "u3", "2025-01-17T10:00:00Z"]);
+      await ds.executeQuery(ilInsert, ["exp1", "control", "u4", "2025-01-15T12:00:00Z"]);
+      await ds.executeQuery(ilInsert, ["exp1", "treatment", "u5", "2025-01-20T10:00:00Z"]);
+
+      // Insert events (mobile-style, no experiment/variant columns)
+      const evInsert =
+        "INSERT INTO events (timestamp, event_name, user_uuid, event_value, event_params) VALUES (?, ?, ?, ?, ?)";
+      await ds.executeQuery(evInsert, ["2025-01-15T10:00:00Z", "purchase", "u1", 10.5, null]);
+      await ds.executeQuery(evInsert, ["2025-01-16T10:00:00Z", "purchase", "u2", 20.0, null]);
+      await ds.executeQuery(evInsert, ["2025-01-17T10:00:00Z", "purchase", "u3", 15.0, null]);
+      await ds.executeQuery(evInsert, ["2025-01-15T12:00:00Z", "page_view", "u4", null, null]);
+      await ds.executeQuery(evInsert, ["2025-01-20T10:00:00Z", "purchase", "u5", 30.0, null]);
     });
 
-    it("returns events for experiment and event name", async () => {
+    it("returns events for experiment and event name via JOIN", async () => {
       const result = await ds.getEventData({
         experimentKey: "exp1",
         eventName: "purchase",
       });
       expect(result.rowCount).toBe(4);
+      // Verify JOIN populates variant_key and experiment_key
+      for (const row of result.rows) {
+        expect(row.variant_key).toBeDefined();
+        expect(row.experiment_key).toBe("exp1");
+      }
     });
 
-    it("filters by variant", async () => {
+    it("filters by variant via inclusion_logs", async () => {
       const result = await ds.getEventData({
         experimentKey: "exp1",
         eventName: "purchase",
@@ -224,71 +246,71 @@ describe("SqliteDataSource", () => {
   });
 
   describe("seedDatabase", () => {
-    it("populates all tables correctly", () => {
-      // Close the default ds, use seeded one
+    it("populates all tables correctly", async () => {
       ds.close();
       ds = seedDatabase(":memory:");
 
-      // Check metrics were seeded
-      const metricsPromise = ds.listMetrics();
-      return metricsPromise.then(async (metrics) => {
-        expect(metrics.length).toBe(5);
-        const metricKeys = metrics.map((m) => m.key);
-        expect(metricKeys).toContain("conversion_rate");
-        expect(metricKeys).toContain("revenue_per_user");
-        expect(metricKeys).toContain("cart_abandonment");
-        expect(metricKeys).toContain("click_through_rate");
-        expect(metricKeys).toContain("avg_session_duration");
+      // 8 metrics
+      const metrics = await ds.listMetrics();
+      expect(metrics.length).toBe(8);
+      const metricKeys = metrics.map((m) => m.key);
+      expect(metricKeys).toContain("ltv_30d");
+      expect(metricKeys).toContain("trial_start_rate");
+      expect(metricKeys).toContain("conversion_rate");
+      expect(metricKeys).toContain("retention_1month");
+      expect(metricKeys).toContain("refund_rate");
+      expect(metricKeys).toContain("time_to_conversion");
+      expect(metricKeys).toContain("support_tickets_per_reg");
+      expect(metricKeys).toContain("activation_rate");
 
-        // Check experiments
-        const expResult = await ds.executeQuery(
-          "SELECT * FROM experiments ORDER BY key"
-        );
-        expect(expResult.rowCount).toBe(2);
+      // 1 experiment
+      const expResult = await ds.executeQuery(
+        "SELECT * FROM experiments ORDER BY key"
+      );
+      expect(expResult.rowCount).toBe(1);
+      expect(expResult.rows[0].key).toBe("trial-length");
 
-        // Check experiment metrics for checkout-redesign
-        const crMetrics = await ds.getExperimentMetrics("checkout-redesign", [
-          "conversion_rate",
-          "revenue_per_user",
-          "cart_abandonment",
-        ]);
-        expect(crMetrics).toHaveLength(3);
+      // 3 variants × 8 metrics = 24 experiment_metrics rows
+      const emResult = await ds.executeQuery(
+        "SELECT COUNT(*) AS cnt FROM experiment_metrics WHERE experiment_key = ?",
+        ["trial-length"]
+      );
+      expect(emResult.rows[0].cnt).toBe(24);
 
-        const convRate = crMetrics.find((m) => m.metricKey === "conversion_rate")!;
-        expect(convRate.metricType).toBe("binary");
-        expect(convRate.variants).toHaveLength(2);
-        const control = convRate.variants.find((v) => v.variantKey === "control")!;
-        expect(control.sampleSize).toBe(1000);
-        expect(control.successes).toBe(120);
+      // Each metric has 3 variants
+      const crMetrics = await ds.getExperimentMetrics("trial-length", [
+        "conversion_rate",
+        "trial_start_rate",
+        "retention_1month",
+      ]);
+      expect(crMetrics).toHaveLength(3);
+      for (const m of crMetrics) {
+        expect(m.variants).toHaveLength(3);
+      }
 
-        // Check experiment metrics for search-ranking-v2
-        const srMetrics = await ds.getExperimentMetrics("search-ranking-v2", [
-          "click_through_rate",
-          "avg_session_duration",
-        ]);
-        expect(srMetrics).toHaveLength(2);
-        const ctr = srMetrics.find((m) => m.metricKey === "click_through_rate")!;
-        expect(ctr.variants).toHaveLength(3);
+      // ~98,685 inclusion_logs
+      const ilResult = await ds.executeQuery(
+        "SELECT COUNT(*) AS cnt FROM inclusion_logs"
+      );
+      const ilCount = ilResult.rows[0].cnt as number;
+      expect(ilCount).toBe(2193 * 45); // 98,685
 
-        // Check events
-        const eventsResult = await ds.executeQuery(
-          "SELECT COUNT(*) AS cnt FROM events"
-        );
-        expect(eventsResult.rows[0].cnt).toBe(200);
+      // Many thousands of events
+      const evResult = await ds.executeQuery(
+        "SELECT COUNT(*) AS cnt FROM events"
+      );
+      const evCount = evResult.rows[0].cnt as number;
+      expect(evCount).toBeGreaterThan(90000); // at least one registration event per user
 
-        // Check events are distributed across experiments
-        const exp1Events = await ds.executeQuery(
-          "SELECT COUNT(*) AS cnt FROM events WHERE experiment_key = ?",
-          ["checkout-redesign"]
-        );
-        expect(exp1Events.rows[0].cnt).toBe(100);
+      // Spot-check: control trial_start_rate ≈ 0.17
+      const tsMetrics = await ds.getExperimentMetrics("trial-length", ["trial_start_rate"]);
+      const controlTs = tsMetrics[0].variants.find((v) => v.variantKey === "control")!;
+      expect(controlTs.mean).toBeCloseTo(0.17, 1);
 
-        const exp2Events = await ds.executeQuery(
-          "SELECT COUNT(*) AS cnt FROM events WHERE experiment_key = ?",
-          ["search-ranking-v2"]
-        );
-        expect(exp2Events.rows[0].cnt).toBe(100);
-      });
-    });
+      // Spot-check: control conversion_rate ≈ 0.42
+      const convMetrics = await ds.getExperimentMetrics("trial-length", ["conversion_rate"]);
+      const controlConv = convMetrics[0].variants.find((v) => v.variantKey === "control")!;
+      expect(controlConv.mean).toBeCloseTo(0.42, 1);
+    }, 30000); // 30s timeout for seed generation
   });
 });

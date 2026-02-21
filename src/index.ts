@@ -4,7 +4,6 @@ import { createGraph } from "./graph/agent.js";
 import { GrowthbookAdapter } from "./platforms/growthbook.js";
 import { AthenaAdapter } from "./data-sources/athena.js";
 import { SqliteDataSource } from "./data-sources/sqlite.js";
-import { MockDataSource } from "./data-sources/mock.js";
 import { StdioBus } from "./io/stdio-bus.js";
 import { SqsBus } from "./io/sqs-bus.js";
 import type { MessageBus } from "./io/message-bus.js";
@@ -27,8 +26,6 @@ async function main() {
       config.athenaWorkgroup,
       config.athenaOutputLocation
     );
-  } else if (config.dataSource === "mock") {
-    dataSource = new MockDataSource();
   } else {
     dataSource = new SqliteDataSource(config.sqliteDataSourcePath);
   }
@@ -106,6 +103,7 @@ async function main() {
           replyTo: msg.replyTo ?? null,
         },
         {
+          recursionLimit: 100,
           configurable: { thread_id: `experiment-${msg.experimentKey}` },
         }
       );

@@ -33,16 +33,28 @@ CREATE TABLE IF NOT EXISTS experiment_metrics (
   FOREIGN KEY(metric_key) REFERENCES metrics(key)
 );
 
-CREATE TABLE IF NOT EXISTS events (
+CREATE TABLE IF NOT EXISTS inclusion_logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   experiment_key TEXT NOT NULL,
   variant_key TEXT NOT NULL,
-  event_name TEXT NOT NULL,
-  user_id TEXT,
-  value REAL,
-  timestamp TEXT,
-  properties TEXT
+  user_uuid TEXT NOT NULL,
+  timestamp TEXT NOT NULL,
+  FOREIGN KEY(experiment_key) REFERENCES experiments(key)
 );
+
+CREATE TABLE IF NOT EXISTS events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  timestamp TEXT NOT NULL,
+  event_name TEXT NOT NULL,
+  user_uuid TEXT NOT NULL,
+  event_value REAL,
+  event_params TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_events_user ON events(user_uuid);
+CREATE INDEX IF NOT EXISTS idx_events_name ON events(event_name);
+CREATE INDEX IF NOT EXISTS idx_inclusion_experiment ON inclusion_logs(experiment_key);
+CREATE INDEX IF NOT EXISTS idx_inclusion_user ON inclusion_logs(user_uuid);
 `;
 
 const READ_PREFIXES = ["SELECT", "PRAGMA", "WITH", "EXPLAIN"];
@@ -145,25 +157,30 @@ export class SqliteDataSource implements DataSource {
 
   async getEventData(options: EventDataOptions): Promise<QueryResult> {
     const conditions: string[] = [
-      "experiment_key = ?",
-      "event_name = ?",
+      "il.experiment_key = ?",
+      "e.event_name = ?",
     ];
     const params: unknown[] = [options.experimentKey, options.eventName];
 
     if (options.startDate) {
-      conditions.push("timestamp >= ?");
+      conditions.push("e.timestamp >= ?");
       params.push(options.startDate);
     }
     if (options.endDate) {
-      conditions.push("timestamp <= ?");
+      conditions.push("e.timestamp <= ?");
       params.push(options.endDate);
     }
     if (options.variantKey) {
-      conditions.push("variant_key = ?");
+      conditions.push("il.variant_key = ?");
       params.push(options.variantKey);
     }
 
-    let sql = `SELECT * FROM events WHERE ${conditions.join(" AND ")} ORDER BY timestamp`;
+    let sql = `
+      SELECT e.*, il.variant_key, il.experiment_key
+      FROM events e
+      JOIN inclusion_logs il ON il.user_uuid = e.user_uuid
+      WHERE ${conditions.join(" AND ")}
+      ORDER BY e.timestamp`;
     if (options.limit) {
       sql += ` LIMIT ?`;
       params.push(options.limit);
