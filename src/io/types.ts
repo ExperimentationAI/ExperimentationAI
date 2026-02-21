@@ -11,7 +11,6 @@ export const MonitorRequestSchema = z.object({
   type: z.literal("monitor_experiment"),
   experimentKey: z.string(),
   userContext: z.string().optional(),
-  contextFile: z.string().optional(),
   replyTo: ReplyToSchema.optional(),
   requestedBy: z.string().optional(),
   correlationId: z.string(),
