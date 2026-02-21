@@ -1,5 +1,5 @@
 import { SqliteStore } from "./memory/sqlite-store.js";
-import { loadConfig } from "./config/index.js";
+import { loadConfig, type ModelProvider } from "./config/index.js";
 import { createGraph } from "./graph/agent.js";
 import { GrowthbookAdapter } from "./platforms/growthbook.js";
 import { AthenaAdapter } from "./data-sources/athena.js";
@@ -43,6 +43,12 @@ async function main() {
     bus = new StdioBus({ inputFile: inputFile ?? undefined });
   }
 
+  // CLI --provider override
+  const providerArg = parseProviderArg();
+  if (providerArg) {
+    config.modelProvider = providerArg;
+  }
+
   // Create persistent memory store (same DB as data source for local dev)
   const store = new SqliteStore(config.sqliteDataSourcePath);
   const compiledGraph = createGraph({
@@ -52,6 +58,7 @@ async function main() {
     store,
     checkpointPath: config.checkpointPath,
     modelName: config.modelName,
+    modelProvider: config.modelProvider,
   });
 
   // In oneshot mode (piped stdin or --input file), skip the scheduler
@@ -131,6 +138,19 @@ function parseInputArg(): string | null {
   const idx = process.argv.indexOf("--input");
   if (idx !== -1 && process.argv[idx + 1]) {
     return process.argv[idx + 1];
+  }
+  return null;
+}
+
+function parseProviderArg(): ModelProvider | null {
+  const idx = process.argv.indexOf("--provider");
+  if (idx !== -1 && process.argv[idx + 1]) {
+    const value = process.argv[idx + 1];
+    if (value === "anthropic" || value === "gemini") {
+      return value;
+    }
+    console.error(`Invalid --provider value: "${value}". Use "anthropic" or "gemini".`);
+    process.exit(1);
   }
   return null;
 }

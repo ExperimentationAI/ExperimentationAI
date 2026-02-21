@@ -1,7 +1,11 @@
 import "dotenv/config";
 
+export type ModelProvider = "anthropic" | "gemini";
+
 export interface Config {
+  modelProvider: ModelProvider;
   anthropicApiKey: string;
+  geminiApiKey: string;
   awsRegion: string;
   sqsInputQueueUrl: string;
   sqsOutputQueueUrl: string;
@@ -26,8 +30,14 @@ export interface Config {
 }
 
 export function loadConfig(): Config {
+  const provider = env("MODEL_PROVIDER", "anthropic") as ModelProvider;
+  const defaultModel =
+    provider === "gemini" ? "gemini-2.0-flash" : "claude-sonnet-4-6";
+
   return {
+    modelProvider: provider,
     anthropicApiKey: env("ANTHROPIC_API_KEY", ""),
+    geminiApiKey: env("GEMINI_API_KEY", ""),
     awsRegion: env("AWS_REGION", "us-east-1"),
     sqsInputQueueUrl: env("SQS_INPUT_QUEUE_URL", ""),
     sqsOutputQueueUrl: env("SQS_OUTPUT_QUEUE_URL", ""),
@@ -46,7 +56,7 @@ export function loadConfig(): Config {
     athenaDatabase: env("ATHENA_DATABASE", ""),
     athenaWorkgroup: env("ATHENA_WORKGROUP", "primary"),
     athenaOutputLocation: env("ATHENA_OUTPUT_LOCATION", ""),
-    modelName: env("MODEL_NAME", "claude-sonnet-4-6"),
+    modelName: env("MODEL_NAME", defaultModel),
     checkpointPath: env("CHECKPOINT_PATH", ":memory:"),
     slackBotToken: env("SLACK_BOT_TOKEN", ""),
     slackSigningSecret: env("SLACK_SIGNING_SECRET", ""),

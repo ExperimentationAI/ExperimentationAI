@@ -1,6 +1,7 @@
 import type { App } from "@slack/bolt";
 import type { CompiledStateGraph } from "@langchain/langgraph";
 import type { Scheduler, WatchedExperiment } from "../scheduler/scheduler.js";
+import type { ModelProvider } from "../config/index.js";
 import type { SlackReplyTo } from "./types.js";
 import { parseIntent } from "./intent-parser.js";
 import {
@@ -19,6 +20,7 @@ export interface SlackBotOptions {
   graph: CompiledStateGraph<any, any, any>;
   scheduler: Scheduler;
   modelName?: string;
+  modelProvider?: ModelProvider;
 }
 
 export class SlackBot {
@@ -26,12 +28,14 @@ export class SlackBot {
   private graph: CompiledStateGraph<any, any, any>;
   private scheduler: Scheduler;
   private modelName?: string;
+  private modelProvider?: ModelProvider;
 
   constructor(options: SlackBotOptions) {
     this.app = options.app;
     this.graph = options.graph;
     this.scheduler = options.scheduler;
     this.modelName = options.modelName;
+    this.modelProvider = options.modelProvider;
 
     this.registerListeners();
   }
@@ -63,6 +67,7 @@ export class SlackBot {
     try {
       const intent = await parseIntent(text, {
         modelName: this.modelName,
+        modelProvider: this.modelProvider,
       });
 
       switch (intent.type) {

@@ -1,4 +1,5 @@
-import { ChatAnthropic } from "@langchain/anthropic";
+import { createChatModel } from "../llm/create-model.js";
+import type { ModelProvider } from "../config/index.js";
 import type { SlackIntent } from "./types.js";
 
 // Strip bot mention prefix (e.g. "<@U12345> analyze foo" → "analyze foo")
@@ -65,14 +66,14 @@ export function parseIntentSync(text: string): SlackIntent | null {
  */
 export async function parseIntent(
   text: string,
-  options?: { modelName?: string }
+  options?: { modelName?: string; modelProvider?: ModelProvider }
 ): Promise<SlackIntent> {
   const regexResult = parseIntentSync(text);
   if (regexResult) return regexResult;
 
   // LLM fallback for ambiguous natural language
   try {
-    return await parseIntentWithLLM(text, options?.modelName);
+    return await parseIntentWithLLM(text, options);
   } catch (err) {
     console.error("LLM intent parsing failed:", err);
     return { type: "unknown", rawText: stripMention(text) };
@@ -81,11 +82,13 @@ export async function parseIntent(
 
 async function parseIntentWithLLM(
   text: string,
-  modelName?: string
+  options?: { modelName?: string; modelProvider?: ModelProvider }
 ): Promise<SlackIntent> {
-  const model = new ChatAnthropic({
-    model: modelName ?? "claude-haiku-4-5-20251001",
-    maxTokens: 200,
+  const provider = options?.modelProvider ?? "anthropic";
+  const defaultModel =
+    provider === "gemini" ? "gemini-2.0-flash" : "claude-haiku-4-5-20251001";
+  const model = createChatModel(provider, options?.modelName ?? defaultModel, {
+    maxOutputTokens: 200,
   });
 
   const response = await model.invoke([
