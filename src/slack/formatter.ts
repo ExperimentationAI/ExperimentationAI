@@ -113,6 +113,17 @@ export function formatAnalysisResult(result: AnalysisResult): Block[] {
     });
   }
 
+  // Dashboard link
+  if (result.dashboardPath) {
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `:bar_chart: <${result.dashboardPath}|View full dashboard>`,
+      },
+    });
+  }
+
   // Timestamp footer
   blocks.push({
     type: "context",

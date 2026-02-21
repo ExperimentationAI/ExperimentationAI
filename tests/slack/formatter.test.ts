@@ -145,6 +145,35 @@ describe("formatAnalysisResult", () => {
       "context",
     ]);
   });
+
+  it("includes dashboard link when dashboardPath is present", () => {
+    const result = {
+      ...baseResult,
+      dashboardPath: "https://example.com/dashboards/pricing-test.html",
+    };
+    const blocks = formatAnalysisResult(result);
+
+    const dashBlock = blocks.find(
+      (b) =>
+        b.type === "section" &&
+        "text" in b &&
+        b.text.text.includes("View full dashboard")
+    );
+    expect(dashBlock).toBeDefined();
+    expect((dashBlock as any).text.text).toContain(result.dashboardPath);
+  });
+
+  it("omits dashboard link when dashboardPath is absent", () => {
+    const blocks = formatAnalysisResult(baseResult);
+
+    const dashBlock = blocks.find(
+      (b) =>
+        b.type === "section" &&
+        "text" in b &&
+        b.text.text.includes("View full dashboard")
+    );
+    expect(dashBlock).toBeUndefined();
+  });
 });
 
 describe("formatMonitorConfirmation", () => {

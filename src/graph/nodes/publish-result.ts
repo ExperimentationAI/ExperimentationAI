@@ -1,3 +1,4 @@
+import { ToolMessage } from "@langchain/core/messages";
 import type { MessageBus } from "../../io/message-bus.js";
 import type { AnalysisResult } from "../../io/types.js";
 import type { AgentStateType, AgentUpdateType } from "../state.js";
@@ -6,6 +7,25 @@ export function createPublishResultNode(bus: MessageBus) {
   return async (state: AgentStateType): Promise<Partial<AgentUpdateType>> => {
     if (!state.conclusion || !state.experimentKey) {
       return {};
+    }
+
+    // Extract dashboardPath from render_dashboard tool message
+    let dashboardPath: string | undefined;
+    for (const msg of state.messages) {
+      if (
+        msg instanceof ToolMessage &&
+        msg.name === "render_dashboard" &&
+        typeof msg.content === "string"
+      ) {
+        try {
+          const parsed = JSON.parse(msg.content);
+          if (parsed.dashboardPath) {
+            dashboardPath = parsed.dashboardPath;
+          }
+        } catch {
+          // ignore parse errors
+        }
+      }
     }
 
     const result: AnalysisResult = {
@@ -17,6 +37,7 @@ export function createPublishResultNode(bus: MessageBus) {
       statisticalResults: state.statisticalResults,
       phase: state.phase,
       replyTo: state.replyTo ?? undefined,
+      dashboardPath,
       timestamp: new Date().toISOString(),
     };
 

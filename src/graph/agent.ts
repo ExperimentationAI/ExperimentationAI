@@ -12,6 +12,7 @@ import {
   createDataSourceTools,
   createStatsTools,
   createMemoryTools,
+  createDashboardTools,
 } from "../tools/index.js";
 import { AgentState, type AgentStateType } from "./state.js";
 import { createLoadContextNode } from "./nodes/load-context.js";
@@ -36,11 +37,13 @@ export function createGraph(options: CreateGraphOptions) {
   const dataSourceTools = createDataSourceTools(dataSource);
   const statsTools = createStatsTools();
   const memoryTools = createMemoryTools(store);
+  const dashboardTools = createDashboardTools();
   const allTools: StructuredToolInterface[] = [
     ...experimentTools,
     ...dataSourceTools,
     ...statsTools,
     ...memoryTools,
+    ...dashboardTools,
   ] as StructuredToolInterface[];
 
   // Create nodes
