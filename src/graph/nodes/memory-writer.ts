@@ -1,9 +1,9 @@
-import type { InMemoryStore } from "@langchain/langgraph";
+import type { BaseStore } from "@langchain/langgraph";
 import type { AgentStateType, AgentUpdateType } from "../state.js";
 import { conclusionsNamespace, globalConclusionsNamespace } from "../../memory/store.js";
 import { v4 as uuidv4 } from "uuid";
 
-export function createMemoryWriterNode(store: InMemoryStore) {
+export function createMemoryWriterNode(store: BaseStore) {
   return async (state: AgentStateType): Promise<Partial<AgentUpdateType>> => {
     if (!state.conclusion || !state.experimentKey) {
       return { phase: "done" };

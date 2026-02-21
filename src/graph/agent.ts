@@ -1,4 +1,5 @@
-import { END, InMemoryStore, START, StateGraph } from "@langchain/langgraph";
+import { END, START, StateGraph } from "@langchain/langgraph";
+import type { BaseStore } from "@langchain/langgraph";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 import { SqliteSaver } from "@langchain/langgraph-checkpoint-sqlite";
 import { AIMessage } from "@langchain/core/messages";
@@ -22,7 +23,7 @@ export interface CreateGraphOptions {
   platform: ExperimentPlatform;
   dataSource: DataSource;
   bus: MessageBus;
-  store: InMemoryStore;
+  store: BaseStore;
   checkpointPath?: string;
   modelName?: string;
 }

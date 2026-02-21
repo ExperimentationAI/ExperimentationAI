@@ -1,8 +1,8 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
-import type { InMemoryStore } from "@langchain/langgraph";
+import type { BaseStore } from "@langchain/langgraph";
 
-export function createMemoryTools(store: InMemoryStore) {
+export function createMemoryTools(store: BaseStore) {
   const searchPastConclusions = tool(
     async (input) => {
       const results = await store.search(
