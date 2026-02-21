@@ -116,7 +116,9 @@ Extract the experiment key/name from the message. If unsure, use type "unknown".
           .map((b) => b.text)
           .join("");
 
-  return JSON.parse(content) as SlackIntent;
+  // Strip markdown code fences if present
+  const cleaned = content.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/, "").trim();
+  return JSON.parse(cleaned) as SlackIntent;
 }
 
 /**
