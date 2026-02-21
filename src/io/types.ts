@@ -28,5 +28,6 @@ export interface AnalysisResult {
   statisticalResults: StatisticalTestResult[];
   phase: string;
   replyTo?: ReplyTo;
+  dashboardPath?: string;
   timestamp: string;
 }
