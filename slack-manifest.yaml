@@ -1,0 +1,43 @@
+_metadata:
+  major_version: 1
+  minor_version: 1
+
+display_information:
+  name: ExperimentationAI
+  description: AI-powered A/B experiment analysis bot
+  long_description: >-
+    ExperimentationAI is a Slack bot that analyzes A/B experiments on demand.
+    Mention it in a channel or send it a DM with an experiment key to get a
+    statistical analysis including p-values, effect sizes, confidence intervals,
+    and a plain-English verdict (ship, kill, or keep running). You can also set
+    up recurring monitoring on a cron schedule and the bot will post updates in
+    the same thread, automatically stopping when the experiment reaches a
+    terminal verdict.
+  background_color: "#1a1a2e"
+
+features:
+  app_home:
+    home_tab_enabled: false
+    messages_tab_enabled: true
+    messages_tab_read_only_enabled: false
+  bot_user:
+    display_name: ExperimentationAI
+    always_online: true
+
+oauth_config:
+  scopes:
+    bot:
+      - app_mentions:read
+      - chat:write
+      - im:history
+
+settings:
+  event_subscriptions:
+    bot_events:
+      - app_mention
+      - message.im
+  interactivity:
+    is_enabled: false
+  org_deploy_enabled: false
+  socket_mode_enabled: true
+  token_rotation_enabled: false
