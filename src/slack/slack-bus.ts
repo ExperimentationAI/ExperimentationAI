@@ -20,32 +20,28 @@ export class SlackBus implements MessageBus {
   }
 
   /**
-   * Upload the dashboard HTML to Slack and return its permalink.
+   * Upload the dashboard HTML to Slack as a file in the thread.
    */
   private async uploadDashboard(
     filePath: string,
     channel: string,
     threadTs: string,
     experimentKey: string
-  ): Promise<string | undefined> {
+  ): Promise<void> {
     try {
-      if (!existsSync(filePath)) return undefined;
+      if (!existsSync(filePath)) return;
 
       const content = readFileSync(filePath);
-      const result = await this.app.client.filesUploadV2({
+      await this.app.client.filesUploadV2({
         channel_id: channel,
         thread_ts: threadTs,
         filename: `${experimentKey}-dashboard.html`,
         file: content,
         title: `${experimentKey} — Experiment Dashboard`,
+        initial_comment: ":bar_chart: Full interactive dashboard attached below.",
       });
-
-      // filesUploadV2 returns the file info — extract permalink
-      const file = (result as any).file ?? (result as any).files?.[0];
-      return file?.permalink ?? undefined;
     } catch (err) {
       console.error("Dashboard upload failed:", err);
-      return undefined;
     }
   }
 
@@ -60,20 +56,11 @@ export class SlackBus implements MessageBus {
       return;
     }
 
-    // Upload dashboard file to Slack and get a permalink
-    if (result.dashboardPath) {
-      const permalink = await this.uploadDashboard(
-        result.dashboardPath,
-        replyTo.destination,
-        replyTo.threadId,
-        result.experimentKey
-      );
-      if (permalink) {
-        result = { ...result, dashboardPath: permalink };
-      }
-    }
-
-    const blocks = formatAnalysisResult(result);
+    // Strip dashboardPath from the result passed to the formatter so the
+    // local filesystem path never leaks into the Slack message text.
+    // The file is uploaded separately as a Slack attachment.
+    const localDashboardPath = result.dashboardPath;
+    const blocks = formatAnalysisResult({ ...result, dashboardPath: undefined });
 
     await this.app.client.chat.postMessage({
       channel: replyTo.destination,
@@ -81,6 +68,16 @@ export class SlackBus implements MessageBus {
       blocks,
       text: `Analysis complete for ${result.experimentKey}`, // fallback text
     });
+
+    // Upload dashboard file as a Slack attachment in the thread
+    if (localDashboardPath) {
+      await this.uploadDashboard(
+        localDashboardPath,
+        replyTo.destination,
+        replyTo.threadId,
+        result.experimentKey
+      );
+    }
   }
 
   async close(): Promise<void> {
