@@ -16,7 +16,8 @@ The fastest way to try the agent locally — no external services needed:
 
 ```bash
 npm run seed   # Populates ./data/local.db with the trial-length experiment
-echo '{"type":"monitor_experiment","experimentKey":"trial-length","correlationId":"local-1"}' \
+jq -nc --rawfile ctx example-xp-plan.md \
+  '{"type":"monitor_experiment","experimentKey":"trial-length","correlationId":"local-1","userContext":$ctx}' \
   | npx tsx src/index.ts
 ```
 
