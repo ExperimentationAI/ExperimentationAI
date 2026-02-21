@@ -9,19 +9,38 @@ export interface SchedulerOptions {
   platform: ExperimentPlatform;
   graph: CompiledStateGraph<any, any, any>;
   onError?: (error: Error, experimentKey: string) => void;
+  onTerminal?: (key: string) => void;
 }
 
-interface WatchedExperiment {
+export interface WatchedExperiment {
   key: string;
   userContext?: string;
   correlationId?: string;
   replyTo?: Record<string, unknown>;
   addedAt: string;
+  cronExpression?: string;
+}
+
+/**
+ * Conservative regex check for terminal experiment verdicts.
+ * False negatives are harmless (extra monitoring cycle).
+ * False positives are mitigated by tight patterns matching only affirmative phrasing.
+ */
+export function isTerminalState(conclusion: string): boolean {
+  const lower = conclusion.toLowerCase();
+  return (
+    /\bship\s+it\b/.test(lower) ||
+    /\brecommend\s+(?:shipping|launching|rolling\s+out)\b/.test(lower) ||
+    /\bkill\s+it\b/.test(lower) ||
+    /\brecommend\s+stopping\b/.test(lower) ||
+    /\bexperiment\s+is\s+(?:stopped|archived)\b/.test(lower)
+  );
 }
 
 export class Scheduler {
   private task: cron.ScheduledTask | null = null;
   private watchedExperiments = new Map<string, WatchedExperiment>();
+  private perExperimentTasks = new Map<string, cron.ScheduledTask>();
   private running = false;
 
   constructor(private options: SchedulerOptions) {}
@@ -29,11 +48,45 @@ export class Scheduler {
   /** Register an experiment for scheduled re-analysis. */
   watch(experiment: WatchedExperiment): void {
     this.watchedExperiments.set(experiment.key, experiment);
+
+    // If experiment has its own cron, create a dedicated task
+    if (experiment.cronExpression) {
+      // Stop existing per-experiment task if any
+      this.perExperimentTasks.get(experiment.key)?.stop();
+
+      const task = cron.schedule(experiment.cronExpression, () => {
+        this.analyzeExperiment(experiment.key).catch((err) => {
+          console.error(
+            `Per-experiment analysis failed for ${experiment.key}:`,
+            err
+          );
+          this.options.onError?.(err as Error, experiment.key);
+        });
+      });
+
+      this.perExperimentTasks.set(experiment.key, task);
+      console.log(
+        `Per-experiment cron started for ${experiment.key}: ${experiment.cronExpression}`
+      );
+    }
   }
 
   /** Remove an experiment from the watch list. */
   unwatch(key: string): void {
     this.watchedExperiments.delete(key);
+
+    // Stop and remove per-experiment cron task
+    const task = this.perExperimentTasks.get(key);
+    if (task) {
+      task.stop();
+      this.perExperimentTasks.delete(key);
+      console.log(`Per-experiment cron stopped for ${key}`);
+    }
+  }
+
+  /** Get all currently watched experiments. */
+  getWatched(): WatchedExperiment[] {
+    return [...this.watchedExperiments.values()];
   }
 
   /** Start the cron scheduler. */
@@ -55,6 +108,12 @@ export class Scheduler {
   stop(): void {
     this.task?.stop();
     this.task = null;
+
+    // Stop all per-experiment tasks
+    for (const [key, task] of this.perExperimentTasks) {
+      task.stop();
+    }
+    this.perExperimentTasks.clear();
   }
 
   /** Manually trigger analysis for all watched + auto-discovered experiments. */
@@ -105,7 +164,7 @@ export class Scheduler {
   async analyzeExperiment(key: string): Promise<void> {
     const watched = this.watchedExperiments.get(key);
 
-    await this.options.graph.invoke(
+    const result = await this.options.graph.invoke(
       {
         experimentKey: key,
         userContext: watched?.userContext ?? null,
@@ -116,6 +175,16 @@ export class Scheduler {
         configurable: { thread_id: `experiment-${key}` },
       }
     );
+
+    // Check for terminal state and auto-unwatch
+    const conclusion = result?.conclusion;
+    if (conclusion && isTerminalState(conclusion)) {
+      console.log(
+        `Terminal state detected for ${key}, auto-unwatching.`
+      );
+      this.unwatch(key);
+      this.options.onTerminal?.(key);
+    }
   }
 
   private async discoverExperiments(): Promise<{ key: string }[]> {

@@ -19,6 +19,10 @@ export interface Config {
   athenaOutputLocation: string;
   modelName: string;
   checkpointPath: string;
+  slackBotToken: string;
+  slackSigningSecret: string;
+  slackAppToken: string;
+  slackPort: number;
 }
 
 export function loadConfig(): Config {
@@ -44,6 +48,10 @@ export function loadConfig(): Config {
     athenaOutputLocation: env("ATHENA_OUTPUT_LOCATION", ""),
     modelName: env("MODEL_NAME", "claude-sonnet-4-6"),
     checkpointPath: env("CHECKPOINT_PATH", ":memory:"),
+    slackBotToken: env("SLACK_BOT_TOKEN", ""),
+    slackSigningSecret: env("SLACK_SIGNING_SECRET", ""),
+    slackAppToken: env("SLACK_APP_TOKEN", ""),
+    slackPort: parseInt(env("SLACK_PORT", "3000"), 10),
   };
 }
 
