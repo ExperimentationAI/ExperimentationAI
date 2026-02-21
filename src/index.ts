@@ -1,3 +1,4 @@
+import { readFileSync } from "fs";
 import { InMemoryStore } from "@langchain/langgraph";
 import { loadConfig } from "./config/index.js";
 import { createGraph } from "./graph/agent.js";
@@ -84,10 +85,24 @@ async function main() {
       `Processing: ${msg.experimentKey} (${msg.correlationId})`
     );
 
-    // Register with scheduler for future re-analysis
+    // Resolve contextFile to userContext content
+    let userContext = msg.userContext;
+    if (msg.contextFile) {
+      try {
+        const fileContent = readFileSync(msg.contextFile, "utf-8");
+        userContext = userContext
+          ? `${userContext}\n\n${fileContent}`
+          : fileContent;
+        console.error(`Loaded context from: ${msg.contextFile}`);
+      } catch (err) {
+        console.error(`Failed to load contextFile "${msg.contextFile}":`, err);
+      }
+    }
+
+    // Register with scheduler for future re-analysis (includes resolved context)
     scheduler?.watch({
       key: msg.experimentKey,
-      userContext: msg.userContext,
+      userContext: userContext,
       correlationId: msg.correlationId,
       replyTo: msg.replyTo as Record<string, unknown> | undefined,
       addedAt: new Date().toISOString(),
@@ -98,7 +113,7 @@ async function main() {
       await compiledGraph.invoke(
         {
           experimentKey: msg.experimentKey,
-          userContext: msg.userContext ?? null,
+          userContext: userContext ?? null,
           correlationId: msg.correlationId,
           replyTo: msg.replyTo ?? null,
         },
