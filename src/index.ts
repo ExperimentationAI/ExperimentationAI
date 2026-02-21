@@ -3,24 +3,32 @@ import { loadConfig } from "./config/index.js";
 import { createGraph } from "./graph/agent.js";
 import { GrowthbookAdapter } from "./platforms/growthbook.js";
 import { AthenaAdapter } from "./data-sources/athena.js";
+import { SqliteDataSource } from "./data-sources/sqlite.js";
 import { StdioBus } from "./io/stdio-bus.js";
 import { SqsBus } from "./io/sqs-bus.js";
 import type { MessageBus } from "./io/message-bus.js";
+import type { DataSource } from "./interfaces/data-source.js";
 import { Scheduler } from "./scheduler/scheduler.js";
 
 async function main() {
   const config = loadConfig();
 
-  // Create adapters
+  // Create adapters (config-driven)
   const platform = new GrowthbookAdapter(
     config.growthbookApiKey,
     config.growthbookApiUrl
   );
-  const dataSource = new AthenaAdapter(
-    config.athenaDatabase,
-    config.athenaWorkgroup,
-    config.athenaOutputLocation
-  );
+
+  let dataSource: DataSource;
+  if (config.dataSource === "athena") {
+    dataSource = new AthenaAdapter(
+      config.athenaDatabase,
+      config.athenaWorkgroup,
+      config.athenaOutputLocation
+    );
+  } else {
+    dataSource = new SqliteDataSource(config.sqliteDataSourcePath);
+  }
 
   // Create message bus based on config
   let bus: MessageBus;

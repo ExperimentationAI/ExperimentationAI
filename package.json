@@ -8,25 +8,28 @@
     "start": "tsx src/index.ts",
     "dev": "tsx watch src/index.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "seed": "tsx src/data-sources/sqlite-seed.ts"
   },
   "dependencies": {
-    "@langchain/langgraph": "^1.1.0",
-    "@langchain/core": "^1.1.0",
-    "@langchain/anthropic": "^1.0.0",
-    "@langchain/langgraph-checkpoint-sqlite": "^1.0.0",
     "@aws-sdk/client-sqs": "^3.700.0",
-    "zod": "^3.24.0",
+    "@langchain/anthropic": "^1.0.0",
+    "@langchain/core": "^1.1.0",
+    "@langchain/langgraph": "^1.1.0",
+    "@langchain/langgraph-checkpoint-sqlite": "^1.0.0",
+    "better-sqlite3": "^12.6.2",
+    "dotenv": "^16.4.0",
     "node-cron": "^3.0.3",
     "uuid": "^10.0.0",
-    "dotenv": "^16.4.0"
+    "zod": "^3.24.0"
   },
   "devDependencies": {
-    "typescript": "^5.6.0",
-    "tsx": "^4.19.0",
-    "vitest": "^2.1.0",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.0.0",
     "@types/node-cron": "^3.0.11",
-    "@types/uuid": "^10.0.0"
+    "@types/uuid": "^10.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
   }
 }
