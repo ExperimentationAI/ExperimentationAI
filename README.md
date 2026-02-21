@@ -10,6 +10,31 @@ cp .env.example .env
 # Edit .env and set ANTHROPIC_API_KEY
 ```
 
+### Local dev with mock data
+
+The fastest way to try the agent locally — no external services needed:
+
+```bash
+# Set DATA_SOURCE=mock in .env, then:
+echo '{"type":"monitor_experiment","experimentKey":"trial-length","correlationId":"local-1"}' \
+  | npx tsx src/index.ts
+```
+
+This uses an in-memory mock data source that generates ~98k simulated users across a 3-arm trial length experiment (control 14-day, short 3-day, medium 7-day). Metrics include LTV, conversion rate, retention, refund rate, and trial start rate.
+
+### Local dev with SQLite
+
+For persistent local data you can query across runs:
+
+```bash
+# Set DATA_SOURCE=sqlite in .env (this is the default), then:
+npm run seed   # Populates ./data/local.db with two sample experiments
+echo '{"type":"monitor_experiment","experimentKey":"checkout-redesign","correlationId":"local-1"}' \
+  | npx tsx src/index.ts
+```
+
+The seed creates two experiments: `checkout-redesign` (2 variants, 3 metrics) and `search-ranking-v2` (3 variants, 2 metrics) with pre-aggregated metrics and ~200 event rows.
+
 ### Run interactively
 
 ```bash
@@ -35,7 +60,7 @@ echo '{"type":"monitor_experiment","experimentKey":"pricing-v2","correlationId":
 
 ```bash
 npm run build    # TypeScript compilation
-npm test         # 28 unit + integration tests
+npm test         # Vitest test suite
 npm run test:watch
 ```
 
@@ -137,24 +162,41 @@ SCHEDULE_CONCURRENCY=3
 SCHEDULE_MIN_RUNTIME_HOURS=24
 ```
 
+## Data sources
+
+Controlled by the `DATA_SOURCE` env var:
+
+| Mode | Source | Use case |
+|------|--------|----------|
+| `sqlite` (default) | Local SQLite database at `SQLITE_DATA_SOURCE_PATH` | Local dev with persistent data, seed via `npm run seed` |
+| `mock` | In-memory generated data (~98k users, 3-arm trial experiment) | Quick local testing, no setup needed |
+| `athena` | AWS Athena queries | Production (stub — needs implementation) |
+
 ## Statistical tests
 
 Pure TypeScript implementations with no external dependencies:
 
 - **Welch's two-sample t-test** — for continuous metrics (revenue, duration). Handles unequal variances and sample sizes.
 - **Two-proportion z-test** — for binary metrics (conversion, click-through). Uses pooled standard error.
+- **Non-inferiority test** — for experiments where simpler/cheaper treatments win by default.
+- **Multi-arm analysis** — pairwise comparisons with Holm-Bonferroni correction.
+- **Guardrail checks** — hard constraints (e.g., retention must not drop >5%).
+- **Funnel analysis** — stage-by-stage conversion breakdown.
+- **Power calculation** — sample size adequacy and runtime recommendations.
+- **Metric decomposition** — separates rate vs mix effects.
+- **Maturity check** — validates sufficient observation window before analysis.
 
-Both return p-values, confidence intervals, effect sizes, and a human-readable interpretation string.
+All return p-values, confidence intervals, effect sizes, and a human-readable interpretation string.
 
 ## Extending
 
 ### Add a new experiment platform
 
-Implement the `ExperimentPlatform` interface in `src/interfaces/experiment-platform.ts` and swap it in `src/index.ts`. The Growthbook adapter in `src/platforms/growthbook.ts` is a stub to show the shape.
+Implement the `ExperimentPlatform` interface in `src/interfaces/experiment-platform.ts` and wire it through `src/config/index.ts` and `src/index.ts`. See `src/platforms/growthbook.ts` for the GrowthBook REST API v1 implementation.
 
 ### Add a new data source
 
-Implement the `DataSource` interface in `src/interfaces/data-source.ts`. The Athena adapter in `src/data-sources/athena.ts` is a stub.
+Implement the `DataSource` interface in `src/interfaces/data-source.ts` and add it as a `DATA_SOURCE` option. See `src/data-sources/sqlite.ts` and `src/data-sources/mock.ts` for examples.
 
 ### Add downstream consumers
 
