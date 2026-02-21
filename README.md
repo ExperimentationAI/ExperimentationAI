@@ -10,30 +10,17 @@ cp .env.example .env
 # Edit .env and set ANTHROPIC_API_KEY
 ```
 
-### Local dev with mock data
+### Local dev with SQLite
 
 The fastest way to try the agent locally — no external services needed:
 
 ```bash
-# Set DATA_SOURCE=mock in .env, then:
+npm run seed   # Populates ./data/local.db with the trial-length experiment
 echo '{"type":"monitor_experiment","experimentKey":"trial-length","correlationId":"local-1"}' \
   | npx tsx src/index.ts
 ```
 
-This uses an in-memory mock data source that generates ~98k simulated users across a 3-arm trial length experiment (control 14-day, short 3-day, medium 7-day). Metrics include LTV, conversion rate, retention, refund rate, and trial start rate.
-
-### Local dev with SQLite
-
-For persistent local data you can query across runs:
-
-```bash
-# Set DATA_SOURCE=sqlite in .env (this is the default), then:
-npm run seed   # Populates ./data/local.db with two sample experiments
-echo '{"type":"monitor_experiment","experimentKey":"checkout-redesign","correlationId":"local-1"}' \
-  | npx tsx src/index.ts
-```
-
-The seed creates two experiments: `checkout-redesign` (2 variants, 3 metrics) and `search-ranking-v2` (3 variants, 2 metrics) with pre-aggregated metrics and ~200 event rows.
+The seed generates a realistic 3-arm trial length optimization experiment (~98k users, 45 days) with mobile-style events and an `inclusion_logs` table for experiment assignment. Variants: control (14-day), short_trial (3-day), medium_trial (7-day). Metrics include LTV, trial start rate, conversion rate, retention, refund rate, time to conversion, support tickets, and activation rate.
 
 ### Run interactively
 
@@ -169,7 +156,6 @@ Controlled by the `DATA_SOURCE` env var:
 | Mode | Source | Use case |
 |------|--------|----------|
 | `sqlite` (default) | Local SQLite database at `SQLITE_DATA_SOURCE_PATH` | Local dev with persistent data, seed via `npm run seed` |
-| `mock` | In-memory generated data (~98k users, 3-arm trial experiment) | Quick local testing, no setup needed |
 | `athena` | AWS Athena queries | Production (stub — needs implementation) |
 
 ## Statistical tests
@@ -196,7 +182,7 @@ Implement the `ExperimentPlatform` interface in `src/interfaces/experiment-platf
 
 ### Add a new data source
 
-Implement the `DataSource` interface in `src/interfaces/data-source.ts` and add it as a `DATA_SOURCE` option. See `src/data-sources/sqlite.ts` and `src/data-sources/mock.ts` for examples.
+Implement the `DataSource` interface in `src/interfaces/data-source.ts` and add it as a `DATA_SOURCE` option. See `src/data-sources/sqlite.ts` for an example.
 
 ### Add downstream consumers
 
