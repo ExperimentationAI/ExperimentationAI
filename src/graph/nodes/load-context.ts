@@ -1,8 +1,8 @@
-import type { InMemoryStore } from "@langchain/langgraph";
+import type { BaseStore } from "@langchain/langgraph";
 import type { AgentStateType, AgentUpdateType } from "../state.js";
 import { conclusionsNamespace } from "../../memory/store.js";
 
-export function createLoadContextNode(store: InMemoryStore) {
+export function createLoadContextNode(store: BaseStore) {
   return async (state: AgentStateType): Promise<Partial<AgentUpdateType>> => {
     const experimentKey = state.experimentKey;
     if (!experimentKey) {

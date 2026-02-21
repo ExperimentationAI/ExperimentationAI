@@ -1,4 +1,4 @@
-import { InMemoryStore } from "@langchain/langgraph";
+import { SqliteStore } from "./memory/sqlite-store.js";
 import { loadConfig } from "./config/index.js";
 import { createGraph } from "./graph/agent.js";
 import { GrowthbookAdapter } from "./platforms/growthbook.js";
@@ -43,8 +43,8 @@ async function main() {
     bus = new StdioBus({ inputFile: inputFile ?? undefined });
   }
 
-  // Create store and graph
-  const store = new InMemoryStore();
+  // Create persistent memory store (same DB as data source for local dev)
+  const store = new SqliteStore(config.sqliteDataSourcePath);
   const compiledGraph = createGraph({
     platform,
     dataSource,
