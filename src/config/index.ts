@@ -9,7 +9,7 @@ export interface Config {
   scheduleCron: string;
   scheduleConcurrency: number;
   scheduleMinRuntimeHours: number;
-  dataSource: "sqlite" | "athena";
+  dataSource: "sqlite" | "athena" | "mock";
   experimentPlatform: "growthbook";
   sqliteDataSourcePath: string;
   growthbookApiKey: string;
@@ -34,7 +34,7 @@ export function loadConfig(): Config {
       env("SCHEDULE_MIN_RUNTIME_HOURS", "24"),
       10
     ),
-    dataSource: env("DATA_SOURCE", "sqlite") as "sqlite" | "athena",
+    dataSource: env("DATA_SOURCE", "sqlite") as "sqlite" | "athena" | "mock",
     experimentPlatform: env("EXPERIMENT_PLATFORM", "growthbook") as "growthbook",
     sqliteDataSourcePath: env("SQLITE_DATA_SOURCE_PATH", "./data/local.db"),
     growthbookApiKey: env("GROWTHBOOK_API_KEY", ""),
