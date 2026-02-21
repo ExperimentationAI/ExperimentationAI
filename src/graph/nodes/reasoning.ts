@@ -133,12 +133,24 @@ export function createReasoningNode(
       ...state.messages,
     ];
 
+    // Ensure the conversation ends with a user message.
+    // On first turn there are no messages; on checkpoint resume the last
+    // message may be an AIMessage from a previous conclusion.
+    const lastMsg = state.messages[state.messages.length - 1];
     if (state.messages.length === 0) {
       messages.push(
         new HumanMessage(
           `Analyze the experiment "${state.experimentKey}". ` +
             `Fetch the experiment details, gather metrics data, run statistical tests, ` +
             `and provide a clear conclusion with a recommendation.`
+        )
+      );
+    } else if (lastMsg instanceof AIMessage) {
+      messages.push(
+        new HumanMessage(
+          `Continue analyzing "${state.experimentKey}". ` +
+            `Pick up where you left off — if you still need data, fetch it; ` +
+            `if you have everything, render the dashboard and write your conclusion.`
         )
       );
     }
