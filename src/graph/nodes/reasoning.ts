@@ -1,6 +1,6 @@
 import { ChatAnthropic } from "@langchain/anthropic";
 import type { StructuredToolInterface } from "@langchain/core/tools";
-import { SystemMessage, HumanMessage } from "@langchain/core/messages";
+import { SystemMessage, HumanMessage, AIMessage } from "@langchain/core/messages";
 import type { AgentStateType, AgentUpdateType } from "../state.js";
 
 export function createReasoningNode(
@@ -100,6 +100,27 @@ export function createReasoningNode(
 
     const response = await model.invoke(messages);
 
-    return { messages: [response] };
+    // When the model produces a final text response (no tool calls),
+    // extract it as the conclusion so downstream nodes can publish it.
+    const update: Partial<AgentUpdateType> = { messages: [response] };
+    if (
+      response instanceof AIMessage &&
+      (!response.tool_calls || response.tool_calls.length === 0) &&
+      response.content
+    ) {
+      const text =
+        typeof response.content === "string"
+          ? response.content
+          : response.content
+              .filter((b): b is { type: "text"; text: string } => (b as any).type === "text")
+              .map((b) => b.text)
+              .join("\n");
+      if (text) {
+        update.conclusion = text;
+        update.phase = "concluding";
+      }
+    }
+
+    return update;
   };
 }

@@ -57,27 +57,38 @@ async function main() {
     modelName: config.modelName,
   });
 
-  // Create scheduler
-  const scheduler = new Scheduler({
-    cronExpression: config.scheduleCron,
-    concurrency: config.scheduleConcurrency,
-    minRuntimeHours: config.scheduleMinRuntimeHours,
-    platform,
-    graph: compiledGraph,
-  });
+  // In oneshot mode (piped stdin or --input file), skip the scheduler
+  // and exit after processing all messages.
+  const isOneshot =
+    config.messageBus === "stdio" &&
+    (!process.stdin.isTTY || parseInputArg() !== null);
 
-  // Start scheduler
-  scheduler.start();
+  // Create and start scheduler only for long-running modes
+  let scheduler: Scheduler | null = null;
+  if (!isOneshot) {
+    scheduler = new Scheduler({
+      cronExpression: config.scheduleCron,
+      concurrency: config.scheduleConcurrency,
+      minRuntimeHours: config.scheduleMinRuntimeHours,
+      platform,
+      graph: compiledGraph,
+    });
+    scheduler.start();
+  }
 
   // Start consuming messages
-  console.error("xp-agent started. Waiting for messages...");
+  console.error(
+    isOneshot
+      ? "xp-agent: processing input..."
+      : "xp-agent started. Waiting for messages..."
+  );
   await bus.consume(async (msg) => {
     console.error(
       `Processing: ${msg.experimentKey} (${msg.correlationId})`
     );
 
     // Register with scheduler for future re-analysis
-    scheduler.watch({
+    scheduler?.watch({
       key: msg.experimentKey,
       userContext: msg.userContext,
       correlationId: msg.correlationId,
@@ -103,10 +114,16 @@ async function main() {
     }
   });
 
-  // Graceful shutdown
+  if (isOneshot) {
+    console.error("Done.");
+    await bus.close();
+    process.exit(0);
+  }
+
+  // Graceful shutdown for long-running modes
   process.on("SIGINT", async () => {
     console.error("\nShutting down...");
-    scheduler.stop();
+    scheduler?.stop();
     await bus.close();
     process.exit(0);
   });
