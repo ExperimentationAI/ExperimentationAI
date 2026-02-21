@@ -17,6 +17,9 @@ export function createPublishResultNode(bus: MessageBus) {
       statisticalResults: state.statisticalResults,
       phase: state.phase,
       replyTo: state.replyTo ?? undefined,
+      ...(state.configChangeResult
+        ? { configChangeResult: state.configChangeResult }
+        : {}),
       timestamp: new Date().toISOString(),
     };
 

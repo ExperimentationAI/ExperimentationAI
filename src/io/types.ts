@@ -28,5 +28,11 @@ export interface AnalysisResult {
   statisticalResults: StatisticalTestResult[];
   phase: string;
   replyTo?: ReplyTo;
+  configChangeResult?: {
+    approved: boolean;
+    action: string;
+    error?: string;
+    timestamp: string;
+  };
   timestamp: string;
 }

@@ -10,6 +10,7 @@ import {
   createDataSourceTools,
   createStatsTools,
   createMemoryTools,
+  createConfigChangeTools,
 } from "../../src/tools/index.js";
 
 describe("Agent Graph Integration", () => {
@@ -115,12 +116,14 @@ describe("Agent Graph Integration", () => {
     const dataSourceTools = createDataSourceTools(mockDataSource);
     const statsTools = createStatsTools();
     const memoryTools = createMemoryTools(store);
+    const configChangeTools = createConfigChangeTools(mockPlatform);
 
     const toolNames = [
       ...experimentTools,
       ...dataSourceTools,
       ...statsTools,
       ...memoryTools,
+      ...configChangeTools,
     ].map((t) => t.name);
 
     expect(toolNames).toContain("list_experiments");
@@ -136,6 +139,7 @@ describe("Agent Graph Integration", () => {
     expect(toolNames).toContain("run_z_test");
     expect(toolNames).toContain("search_past_conclusions");
     expect(toolNames).toContain("get_learnings");
+    expect(toolNames).toContain("propose_config_change");
   });
 
   it("experiment tools call the platform correctly", async () => {
