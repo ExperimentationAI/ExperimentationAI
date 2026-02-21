@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import type { ExperimentPlatform } from "../interfaces/experiment-platform.js";
 import type { CompiledStateGraph } from "@langchain/langgraph";
+import { ConsoleProgressLogger } from "../slack/progress-tracker.js";
 
 export interface SchedulerOptions {
   cronExpression: string;
@@ -163,8 +164,9 @@ export class Scheduler {
   /** Run graph for a single experiment. */
   async analyzeExperiment(key: string): Promise<void> {
     const watched = this.watchedExperiments.get(key);
+    const logger = new ConsoleProgressLogger(key);
 
-    const result = await this.options.graph.invoke(
+    const stream = await this.options.graph.stream(
       {
         experimentKey: key,
         userContext: watched?.userContext ?? null,
@@ -172,12 +174,24 @@ export class Scheduler {
         replyTo: watched?.replyTo ?? null,
       },
       {
+        streamMode: "updates",
         configurable: { thread_id: `experiment-${key}` },
       }
     );
 
+    let conclusion: string | null = null;
+    for await (const chunk of stream) {
+      const nodeName = Object.keys(chunk)[0];
+      if (nodeName) {
+        const stateUpdate = chunk[nodeName];
+        logger.onNodeComplete(nodeName, stateUpdate);
+        if (stateUpdate?.conclusion) {
+          conclusion = stateUpdate.conclusion;
+        }
+      }
+    }
+
     // Check for terminal state and auto-unwatch
-    const conclusion = result?.conclusion;
     if (conclusion && isTerminalState(conclusion)) {
       console.log(
         `Terminal state detected for ${key}, auto-unwatching.`

@@ -87,6 +87,17 @@ describe("isTerminalState", () => {
   });
 });
 
+/** Helper: create an async iterable from an array of stream chunks. */
+function mockStream(chunks: Record<string, any>[]) {
+  return {
+    async *[Symbol.asyncIterator]() {
+      for (const chunk of chunks) {
+        yield chunk;
+      }
+    },
+  };
+}
+
 describe("Scheduler terminal auto-unwatch", () => {
   let mockGraph: any;
   let mockPlatform: any;
@@ -95,6 +106,7 @@ describe("Scheduler terminal auto-unwatch", () => {
   beforeEach(() => {
     mockGraph = {
       invoke: vi.fn(),
+      stream: vi.fn(),
     };
     mockPlatform = {
       listExperiments: vi.fn().mockResolvedValue([]),
@@ -103,9 +115,12 @@ describe("Scheduler terminal auto-unwatch", () => {
   });
 
   it("auto-unwatches when graph returns terminal conclusion", async () => {
-    mockGraph.invoke.mockResolvedValue({
-      conclusion: "Ship it — treatment wins on all metrics.",
-    });
+    mockGraph.stream.mockResolvedValue(
+      mockStream([
+        { reasoning: { conclusion: "Ship it — treatment wins on all metrics." } },
+        { publish_result: {} },
+      ])
+    );
 
     const scheduler = new Scheduler({
       cronExpression: "0 * * * *",
@@ -128,9 +143,12 @@ describe("Scheduler terminal auto-unwatch", () => {
   });
 
   it("keeps watching when conclusion is non-terminal", async () => {
-    mockGraph.invoke.mockResolvedValue({
-      conclusion: "Keep running, we need more data.",
-    });
+    mockGraph.stream.mockResolvedValue(
+      mockStream([
+        { reasoning: { conclusion: "Keep running, we need more data." } },
+        { publish_result: {} },
+      ])
+    );
 
     const scheduler = new Scheduler({
       cronExpression: "0 * * * *",
@@ -153,7 +171,12 @@ describe("Scheduler terminal auto-unwatch", () => {
   });
 
   it("keeps watching when graph returns no conclusion", async () => {
-    mockGraph.invoke.mockResolvedValue({});
+    mockGraph.stream.mockResolvedValue(
+      mockStream([
+        { reasoning: {} },
+        { publish_result: {} },
+      ])
+    );
 
     const scheduler = new Scheduler({
       cronExpression: "0 * * * *",
