@@ -3,10 +3,10 @@ _metadata:
   minor_version: 1
 
 display_information:
-  name: XP Agent
+  name: ExperimentationAI
   description: AI-powered A/B experiment analysis bot
   long_description: >-
-    XP Agent is an AI-powered Slack bot that analyzes A/B experiments on demand.
+    ExperimentationAI is a Slack bot that analyzes A/B experiments on demand.
     Mention it in a channel or send it a DM with an experiment key to get a
     statistical analysis including p-values, effect sizes, confidence intervals,
     and a plain-English verdict (ship, kill, or keep running). You can also set
@@ -21,7 +21,7 @@ features:
     messages_tab_enabled: true
     messages_tab_read_only_enabled: false
   bot_user:
-    display_name: XP Agent
+    display_name: ExperimentationAI
     always_online: true
 
 oauth_config:
