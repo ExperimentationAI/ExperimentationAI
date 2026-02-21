@@ -94,5 +94,5 @@ export function createGraph(options: CreateGraphOptions) {
     options.checkpointPath ?? ":memory:"
   );
 
-  return graph.compile({ checkpointer, store });
+  return graph.compile({ checkpointer, store, recursionLimit: 75 });
 }

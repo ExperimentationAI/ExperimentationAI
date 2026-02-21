@@ -42,7 +42,7 @@ export function loadConfig(): Config {
     athenaDatabase: env("ATHENA_DATABASE", ""),
     athenaWorkgroup: env("ATHENA_WORKGROUP", "primary"),
     athenaOutputLocation: env("ATHENA_OUTPUT_LOCATION", ""),
-    modelName: env("MODEL_NAME", "claude-sonnet-4-5-20250929"),
+    modelName: env("MODEL_NAME", "claude-sonnet-4-6"),
     checkpointPath: env("CHECKPOINT_PATH", ":memory:"),
   };
 }

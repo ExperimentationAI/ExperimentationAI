@@ -8,7 +8,7 @@ export function createReasoningNode(
   options?: { modelName?: string }
 ) {
   const model = new ChatAnthropic({
-    model: options?.modelName ?? "claude-sonnet-4-5-20250929",
+    model: options?.modelName ?? "claude-sonnet-4-6",
     temperature: 0,
   }).bindTools(tools);
 
