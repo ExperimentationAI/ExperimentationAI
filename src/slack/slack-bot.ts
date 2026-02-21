@@ -11,6 +11,7 @@ import {
   formatHelpMessage,
   formatErrorMessage,
 } from "./formatter.js";
+import { ProgressTracker } from "./progress-tracker.js";
 import { v4 as uuidv4 } from "uuid";
 
 export interface SlackBotOptions {
@@ -133,19 +134,37 @@ export class SlackBot {
       threadId: threadTs,
     };
 
-    // Graph invocation — publish_result node will post back via SlackBus
-    await this.graph.invoke(
-      {
-        experimentKey,
-        userContext: userContext ?? null,
-        correlationId: uuidv4(),
-        replyTo,
-      },
-      {
-        recursionLimit: 100,
-        configurable: { thread_id: `experiment-${experimentKey}` },
+    const tracker = new ProgressTracker({
+      app: this.app,
+      channel,
+      threadTs,
+      experimentKey,
+    });
+
+    try {
+      const stream = await this.graph.stream(
+        {
+          experimentKey,
+          userContext: userContext ?? null,
+          correlationId: uuidv4(),
+          replyTo,
+        },
+        {
+          streamMode: "updates",
+          recursionLimit: 100,
+          configurable: { thread_id: `experiment-${experimentKey}` },
+        }
+      );
+
+      for await (const chunk of stream) {
+        const nodeName = Object.keys(chunk)[0];
+        if (nodeName) {
+          await tracker.onNodeComplete(nodeName, chunk[nodeName]);
+        }
       }
-    );
+    } finally {
+      await tracker.cleanup();
+    }
   }
 
   private async handleMonitor(
