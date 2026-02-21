@@ -187,7 +187,7 @@ export class GrowthbookAdapter implements ExperimentPlatform {
 
   async updateExperiment(
     key: string,
-    updates: Partial<Pick<Experiment, "name" | "tags" | "metrics">>,
+    updates: Partial<Pick<Experiment, "name" | "tags" | "metrics" | "variants">>,
   ): Promise<Experiment> {
     const id = await this.resolveExperimentId(key);
     const body: Record<string, unknown> = {};
@@ -198,6 +198,14 @@ export class GrowthbookAdapter implements ExperimentPlatform {
         id: m.key,
         name: m.name,
         type: m.type,
+      }));
+    }
+    if (updates.variants !== undefined) {
+      body.variations = updates.variants.map((v) => ({
+        variationId: v.id,
+        key: v.key,
+        name: v.name,
+        weight: v.weight,
       }));
     }
     const data = await this.request<{ experiment: Record<string, unknown> }>(

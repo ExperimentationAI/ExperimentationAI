@@ -317,6 +317,32 @@ describe("GrowthbookAdapter", () => {
       expect(body.name).toBe("Updated Name");
       expect(body.tags).toEqual(["new-tag"]);
     });
+
+    it("sends variant weights as variations in POST body", async () => {
+      const gbExp = makeGbExperiment();
+
+      mockFetch
+        .mockResolvedValueOnce(
+          jsonResponse({
+            experiments: [{ id: "exp_abc123", trackingKey: "checkout-flow" }],
+          }),
+        )
+        .mockResolvedValueOnce(jsonResponse({ experiment: gbExp }));
+
+      await adapter.updateExperiment("checkout-flow", {
+        variants: [
+          { id: "v1", key: "control", name: "Control", weight: 0.2 },
+          { id: "v2", key: "variant", name: "Variant", weight: 0.8 },
+        ],
+      });
+
+      const [, opts] = mockFetch.mock.calls[1];
+      const body = JSON.parse(opts.body);
+      expect(body.variations).toEqual([
+        { variationId: "v1", key: "control", name: "Control", weight: 0.2 },
+        { variationId: "v2", key: "variant", name: "Variant", weight: 0.8 },
+      ]);
+    });
   });
 
   describe("setExperimentStatus", () => {

@@ -56,7 +56,7 @@ export interface ExperimentPlatform {
   }): Promise<Experiment>;
   updateExperiment(
     key: string,
-    updates: Partial<Pick<Experiment, "name" | "tags" | "metrics">>
+    updates: Partial<Pick<Experiment, "name" | "tags" | "metrics" | "variants">>
   ): Promise<Experiment>;
   setExperimentStatus(key: string, status: ExperimentStatus): Promise<void>;
   getFeatureFlag(key: string): Promise<FeatureFlag>;
