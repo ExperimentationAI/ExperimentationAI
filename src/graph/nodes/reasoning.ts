@@ -1,16 +1,18 @@
-import { ChatAnthropic } from "@langchain/anthropic";
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import { SystemMessage, HumanMessage, AIMessage } from "@langchain/core/messages";
 import type { AgentStateType, AgentUpdateType } from "../state.js";
+import { createChatModel } from "../../llm/create-model.js";
+import type { ModelProvider } from "../../config/index.js";
 
 export function createReasoningNode(
   tools: StructuredToolInterface[],
-  options?: { modelName?: string }
+  options?: { modelName?: string; modelProvider?: ModelProvider }
 ) {
-  const model = new ChatAnthropic({
-    model: options?.modelName ?? "claude-sonnet-4-6",
-    temperature: 0,
-  }).bindTools(tools);
+  const model = createChatModel(
+    options?.modelProvider ?? "anthropic",
+    options?.modelName ?? "claude-sonnet-4-6",
+    { temperature: 0 },
+  ).bindTools(tools);
 
   return async (state: AgentStateType): Promise<Partial<AgentUpdateType>> => {
     const systemParts: string[] = [

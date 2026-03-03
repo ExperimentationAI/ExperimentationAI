@@ -20,6 +20,8 @@ import { createReasoningNode } from "./nodes/reasoning.js";
 import { createMemoryWriterNode } from "./nodes/memory-writer.js";
 import { createPublishResultNode } from "./nodes/publish-result.js";
 
+import type { ModelProvider } from "../config/index.js";
+
 export interface CreateGraphOptions {
   platform: ExperimentPlatform;
   dataSource: DataSource;
@@ -27,6 +29,7 @@ export interface CreateGraphOptions {
   store: BaseStore;
   checkpointPath?: string;
   modelName?: string;
+  modelProvider?: ModelProvider;
 }
 
 export function createGraph(options: CreateGraphOptions) {
@@ -50,6 +53,7 @@ export function createGraph(options: CreateGraphOptions) {
   const loadContext = createLoadContextNode(store);
   const reasoning = createReasoningNode(allTools, {
     modelName: options.modelName,
+    modelProvider: options.modelProvider,
   });
   const toolNode = new ToolNode(allTools);
   const memoryWriter = createMemoryWriterNode(store);

@@ -60,6 +60,7 @@ async function main() {
     store,
     checkpointPath: config.checkpointPath,
     modelName: config.modelName,
+    modelProvider: config.modelProvider,
   });
 
   // Create scheduler with terminal auto-stop callback
@@ -81,6 +82,7 @@ async function main() {
     graph: compiledGraph,
     scheduler,
     modelName: config.modelName,
+    modelProvider: config.modelProvider,
   });
 
   // Start Bolt
